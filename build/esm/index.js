@@ -4,7 +4,7 @@ import axios from "axios";
 const { AudioContext: NodeAudioContext, AudioBuffer: NodeAudioBuffer, GainNode: NodeGainNode, AudioBufferSourceNode: NodeAudioBufferSourceNode, } = waa;
 class NodeMp3Player {
     isPlaying = false;
-    #currentUrl = null;
+    #currentUrl = "";
     #volume = 100;
     #speaker = null;
     #gainNode = null;

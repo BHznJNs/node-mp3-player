@@ -12,10 +12,10 @@ const {
 class NodeMp3Player {
     isPlaying: Boolean = false
 
-    #currentUrl: string = null
+    #currentUrl: string = ""
     #volume: number = 100
 
-    #speaker: Speaker   = null
+    #speaker: Speaker | null = null
     #gainNode: typeof NodeGainNode = null
     #sourceNode: typeof NodeAudioBufferSourceNode = null
     #audioContext: typeof NodeAudioContext = null

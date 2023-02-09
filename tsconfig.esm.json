@@ -1,0 +1,19 @@
+{
+    "include": [
+        "src/*.ts",
+    ],
+    "exclude": [
+        "node_modules/*"
+    ],
+    "compileOnSave": false,
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ES2022",
+        "outDir": "./build/esm",
+        "declaration": true,
+        "removeComments": true,
+        "alwaysStrict": true,
+        "moduleResolution": "node",
+        "allowSyntheticDefaultImports": true
+    }
+}
