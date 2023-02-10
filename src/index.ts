@@ -64,6 +64,10 @@ class NodeMp3Player {
         return this.#volume
     }
     public set volume(newVal: number) {
+        // 音量限幅
+        newVal = (newVal > 1) ? 1 : newVal
+        newVal = (newVal < 0) ? 0 : newVal
+
         this.#volume = newVal
         this.#gainNode.gain.value = newVal;
     }
