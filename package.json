@@ -1,6 +1,6 @@
 {
   "name": "@bhznjns/node-mp3-player",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "A mp3 playing library for Node.js cli.",
   "types": "./src/index.d.ts",
   "exports": {
