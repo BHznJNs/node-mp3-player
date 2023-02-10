@@ -1,4 +1,4 @@
-const { default: Player } = require("../build/cjs/index.js")
+const { default: Player } = require("../build/cjs/index.cjs")
 
 const player = new Player()
 

@@ -9,9 +9,19 @@ const axios_1 = __importDefault(require("axios"));
 const { AudioContext: NodeAudioContext, AudioBuffer: NodeAudioBuffer, GainNode: NodeGainNode, AudioBufferSourceNode: NodeAudioBufferSourceNode, } = web_audio_api_1.default;
 class NodeMp3Player {
     isPlaying = false;
+    loop = false;
     #currentUrl = "";
-    #volume = 100;
-    #speaker = null;
+    #volume = 1;
+    #timer = {
+        start: 0,
+        offset: 0,
+        clear() {
+            this.start = 0;
+            this.offset = 0;
+        }
+    };
+    #speaker;
+    #currentBuffer;
     #gainNode = null;
     #sourceNode = null;
     #audioContext = null;
@@ -36,6 +46,7 @@ class NodeMp3Player {
         this.stop();
         this.#sourceNode = null;
         this.#currentUrl = newVal;
+        this.#timer.clear();
     }
     get volume() {
         return this.#volume;
@@ -44,7 +55,7 @@ class NodeMp3Player {
         this.#volume = newVal;
         this.#gainNode.gain.value = newVal;
     }
-    async getBuffer() {
+    async #getBuffer() {
         const url = this.#currentUrl;
         return new Promise((resolve, reject) => {
             axios_1.default.get(url, {
@@ -60,25 +71,39 @@ class NodeMp3Player {
             });
         });
     }
-    async play(isLoop) {
-        if (!this.#currentUrl || (typeof this.#currentUrl !== "string")) {
-            console.warn("NodeMp3Player Error: invalid music url: " + this.#currentUrl);
-            return null;
-        }
+    #sourceNodeFactory(buffer, loop) {
         const source = this.#sourceNode =
             this.#audioContext.createBufferSource();
-        const buffer = await this.getBuffer();
         source.buffer = buffer;
-        source.loop = isLoop;
+        source.loop = loop;
         source.connect(this.#gainNode);
+        return source;
+    }
+    async play() {
+        if (!this.#currentUrl || (typeof this.#currentUrl !== "string")) {
+            return null;
+        }
+        const buffer = this.#currentBuffer =
+            await this.#getBuffer();
+        const source = this.#sourceNodeFactory(buffer, this.loop);
         source.start(0);
+        this.#timer.start = this.currentTime;
         this.isPlaying = true;
+        return true;
+    }
+    resume() {
+        if (!this.#currentUrl || (typeof this.#currentUrl !== "string")) {
+            return null;
+        }
+        const source = this.#sourceNodeFactory(this.#currentBuffer, this.loop);
+        source.start(0, this.#timer.offset);
         return true;
     }
     stop() {
         if (this.#sourceNode) {
-            this.#sourceNode.stop(this.currentTime);
+            this.#sourceNode.stop(0);
             this.isPlaying = false;
+            this.#timer.offset = this.currentTime - this.#timer.start;
         }
     }
 }

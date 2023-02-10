@@ -9,16 +9,32 @@ const {
     AudioBufferSourceNode: NodeAudioBufferSourceNode,
 } = waa
 
+interface Timer {
+    start : number,
+    offset: number,
+    clear : Function,
+}
+
 class NodeMp3Player {
-    isPlaying: Boolean = false
+    isPlaying: boolean = false
+    loop: boolean = false
 
     #currentUrl: string = ""
-    #volume: number = 100
+    #volume: number = 1
+    #timer: Timer = {
+        start: 0,
+        offset: 0,
+        clear() {
+            this.start  = 0
+            this.offset = 0
+        }
+    }
 
-    #speaker: Speaker | null = null
-    #gainNode: typeof NodeGainNode = null
-    #sourceNode: typeof NodeAudioBufferSourceNode = null
-    #audioContext: typeof NodeAudioContext = null
+    #speaker: Speaker
+    #currentBuffer: typeof NodeAudioBuffer
+    #gainNode: any | typeof NodeGainNode = null
+    #sourceNode: any | typeof NodeAudioBufferSourceNode = null
+    #audioContext: any | typeof NodeAudioContext = null
 
     constructor() {
         this.#audioContext = new NodeAudioContext()
@@ -42,6 +58,7 @@ class NodeMp3Player {
         this.stop()
         this.#sourceNode = null
         this.#currentUrl = newVal
+        this.#timer.clear()
     }
     public get volume(): number {
         return this.#volume
@@ -51,7 +68,7 @@ class NodeMp3Player {
         this.#gainNode.gain.value = newVal;
     }
 
-    private async getBuffer() {
+    async #getBuffer(): Promise<typeof NodeAudioBuffer> {
         const url = this.#currentUrl
 
         return new Promise((resolve, reject) => {
@@ -61,10 +78,10 @@ class NodeMp3Player {
                 responseType: "arraybuffer"
             })
             .then((res: AxiosResponse) => res.data)
-            .then((buffer: typeof NodeAudioBuffer) => {
+            .then((buffer: typeof Buffer) => {
                 this.#audioContext.decodeAudioData(
                     buffer,
-                    (audioBuffer: AudioBuffer) => {
+                    (audioBuffer: typeof NodeAudioBuffer) => {
                         resolve(audioBuffer)
                     },
                     (err: Error) => {
@@ -75,27 +92,46 @@ class NodeMp3Player {
         })
     }
 
-    public async play(isLoop: Boolean) {
-        if (!this.#currentUrl || (typeof this.#currentUrl !== "string")) {
-            console.warn("NodeMp3Player Error: invalid music url: " + this.#currentUrl)
-            return null
-        }
-        const source: typeof NodeAudioBufferSourceNode =
+    // 创建可以被直接使用的 sourceNode
+    #sourceNodeFactory(buffer: typeof NodeAudioBuffer, loop: boolean) {
+        const source: any =
             this.#sourceNode =
             this.#audioContext.createBufferSource()
-        const buffer: typeof NodeAudioBuffer = await this.getBuffer()
         source.buffer = buffer
-        source.loop   = isLoop
+        source.loop   = loop
         source.connect(this.#gainNode)
-        source.start(0)
-        this.isPlaying = true
 
+        return source
+    }
+
+    public async play() {
+        if (!this.#currentUrl || (typeof this.#currentUrl !== "string")) {
+            return null
+        }
+
+        const buffer: typeof NodeAudioBuffer =
+            this.#currentBuffer =
+            await this.#getBuffer()
+        const source = this.#sourceNodeFactory(buffer, this.loop)
+        source.start(0)
+
+        this.#timer.start = this.currentTime
+        this.isPlaying = true
+        return true
+    }
+    public resume() {
+        if (!this.#currentUrl || (typeof this.#currentUrl !== "string")) {
+            return null
+        }
+        const source = this.#sourceNodeFactory(this.#currentBuffer, this.loop)
+        source.start(0, this.#timer.offset)
         return true
     }
     public stop() {
         if (this.#sourceNode) {
-            this.#sourceNode.stop(this.currentTime)
+            this.#sourceNode.stop(0)
             this.isPlaying = false
+            this.#timer.offset = this.currentTime - this.#timer.start
         }
     }
 }
