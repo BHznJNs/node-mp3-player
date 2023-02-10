@@ -1,6 +1,6 @@
 {
   "name": "@bhznjns/node-mp3-player",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A mp3 playing library for Node.js cli.",
   "types": "./src/index.d.ts",
   "exports": {
@@ -13,7 +13,8 @@
   "author": "BHznJNs",
   "license": "MIT",
   "scripts": {
-    "build": "tsc -p ./tsconfig.esm.json && tsc -p ./tsconfig.cjs.json"
+    "compile": "tsc -p ./tsconfig.esm.json && tsc -p ./tsconfig.cjs.json",
+    "build": "node ./build/build.js"
   },
   "dependencies": {
     "abc": "^0.6.1",

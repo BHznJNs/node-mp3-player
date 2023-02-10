@@ -33,6 +33,7 @@ class NodeMp3Player {
         return this.#currentUrl;
     }
     set src(newVal) {
+        this.stop();
         this.#sourceNode = null;
         this.#currentUrl = newVal;
     }

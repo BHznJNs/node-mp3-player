@@ -39,6 +39,7 @@ class NodeMp3Player {
         return this.#currentUrl
     }
     public set src(newVal: string) {
+        this.stop()
         this.#sourceNode = null
         this.#currentUrl = newVal
     }
