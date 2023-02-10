@@ -23,7 +23,7 @@ class NodeMp3Player {
     #volume: number = 1
     #timer: Timer = {
         start: 0,
-        offset: 0,
+        offset: 0, // 播放进度
         clear() {
             this.start  = 0
             this.offset = 0
@@ -125,6 +125,8 @@ class NodeMp3Player {
         }
         const source = this.#sourceNodeFactory(this.#currentBuffer, this.loop)
         source.start(0, this.#timer.offset)
+        this.#timer.start = this.currentTime
+
         this.isPlaying = true
         return true
     }
@@ -132,7 +134,11 @@ class NodeMp3Player {
         if (this.#sourceNode) {
             this.#sourceNode.stop(0)
             this.isPlaying = false
-            this.#timer.offset = this.currentTime - this.#timer.start
+            if (!this.#timer.offset) {
+                this.#timer.offset = this.currentTime - this.#timer.start
+            } else {
+                this.#timer.offset += this.currentTime - this.#timer.start
+            }
         }
     }
 }

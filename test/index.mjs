@@ -12,6 +12,14 @@ setTimeout(() => {
     player.resume()
 }, 10000)
 
+setTimeout(() => {
+    player.stop()
+}, 15000)
+
+setTimeout(() => {
+    player.resume()
+}, 20000)
+
 // setTimeout(async () => {
 //     player.src = "https://music.163.com/song/media/outer/url?id=2061452.mp3"
 //     await player.play()
