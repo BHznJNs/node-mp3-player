@@ -125,6 +125,7 @@ class NodeMp3Player {
         }
         const source = this.#sourceNodeFactory(this.#currentBuffer, this.loop)
         source.start(0, this.#timer.offset)
+        this.isPlaying = true
         return true
     }
     public stop() {
