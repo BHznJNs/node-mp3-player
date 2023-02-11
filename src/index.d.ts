@@ -8,6 +8,8 @@ declare class NodeMp3Player {
     set src(newVal: string);
     get volume(): number;
     set volume(newVal: number);
+    get onended(): Function;
+    set onended(newVal: Function);
     play(): Promise<boolean>;
     resume(): boolean;
     stop(): void;

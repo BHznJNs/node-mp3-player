@@ -52,6 +52,12 @@ class NodeMp3Player {
         this.#volume = newVal;
         this.#gainNode.gain.value = newVal;
     }
+    get onended() {
+        return this.#sourceNode.onended;
+    }
+    set onended(newVal) {
+        this.#sourceNode.onended = newVal;
+    }
     async #getBuffer() {
         const url = this.#currentUrl;
         return new Promise((resolve, reject) => {
