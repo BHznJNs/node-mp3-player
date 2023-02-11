@@ -9,13 +9,13 @@ player.onended = () => {
     player.play()
 }
 
-// setTimeout(() => {
-//     player.stop()
-// }, 5000)
+setTimeout(() => {
+    player.stop()
+}, 5000)
 
-// setTimeout(() => {
-//     player.resume()
-// }, 10000)
+setTimeout(() => {
+    player.resume()
+}, 10000)
 
 // setTimeout(() => {
 //     player.stop()

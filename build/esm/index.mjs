@@ -75,11 +75,14 @@ class NodeMp3Player {
         });
     }
     #sourceNodeFactory(buffer, loop) {
-        const source = this.#sourceNode =
-            this.#audioContext.createBufferSource();
+        const source = this.#audioContext.createBufferSource();
+        if (this.#sourceNode) {
+            source.onended = this.#sourceNode.onended;
+        }
         source.buffer = buffer;
         source.loop = loop;
         source.connect(this.#gainNode);
+        this.#sourceNode = source;
         return source;
     }
     async play() {

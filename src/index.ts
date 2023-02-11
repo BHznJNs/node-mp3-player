@@ -105,12 +105,16 @@ class NodeMp3Player {
     // 创建可以被直接使用的 sourceNode
     #sourceNodeFactory(buffer: typeof NodeAudioBuffer, loop: boolean) {
         const source: any =
-            this.#sourceNode =
             this.#audioContext.createBufferSource()
+
+        if (this.#sourceNode) {
+            source.onended = this.#sourceNode.onended
+        }
         source.buffer = buffer
         source.loop   = loop
         source.connect(this.#gainNode)
 
+        this.#sourceNode = source
         return source
     }
 
