@@ -1,6 +1,7 @@
 import waa from "web-audio-api"
 import Speaker from "speaker"
-import axios, { AxiosResponse } from "axios"
+import Mp3 from "js-mp3"
+import axios, { AxiosResponse, AxiosError } from "axios"
 
 const {
     AudioContext: NodeAudioContext,
@@ -30,7 +31,6 @@ class NodeMp3Player {
         }
     }
 
-    #speaker: Speaker
     #currentBuffer: typeof NodeAudioBuffer
     #gainNode: any | typeof NodeGainNode = null
     #sourceNode: any | typeof NodeAudioBufferSourceNode = null
@@ -38,14 +38,6 @@ class NodeMp3Player {
 
     constructor() {
         this.#audioContext = new NodeAudioContext()
-        this.#speaker = new Speaker({
-            channels: this.#audioContext.format.numberOfChannels,
-            bitDepth: this.#audioContext.format.bitDepth,
-            sampleRate: this.#audioContext.sampleRate
-        })
-        this.#audioContext.outStream = this.#speaker
-        this.#gainNode = this.#audioContext.createGain()
-        this.#gainNode.connect(this.#audioContext.destination)
     }
 
     public get currentTime(): number {
@@ -92,12 +84,39 @@ class NodeMp3Player {
                 this.#audioContext.decodeAudioData(
                     buffer,
                     (audioBuffer: typeof NodeAudioBuffer) => {
+                        const sampleRate: number = audioBuffer["sampleRate"]
+                        this.#audioContext.sampleRate = sampleRate
+
+                        const speaker = new Speaker({
+                            channels: this.#audioContext.format.numberOfChannels,
+                            bitDepth: this.#audioContext.format.bitDepth,
+                            sampleRate,
+                        })
+
+                        this.#audioContext.outStream = speaker
+                        this.#gainNode = this.#audioContext.createGain()
+                        this.#gainNode.gain.value = this.#volume
+                        this.#gainNode.connect(this.#audioContext.destination)
+
                         resolve(audioBuffer)
                     },
                     (err: Error) => {
                         reject(err)
                     }
                 )
+            })
+            .catch((err: AxiosError) => {
+                // from axios sample code
+                if (err.response) {
+                    console.log(err.response.data);
+                    console.log(err.response.status);
+                    console.log(err.response.headers);
+                } else if (err.request) {
+                    console.log(err.request)
+                } else {
+                    console.log(err.message)
+                }
+                console.log(err.config)
             })
         })
     }

@@ -20,21 +20,12 @@ class NodeMp3Player {
             this.offset = 0;
         }
     };
-    #speaker;
     #currentBuffer;
     #gainNode = null;
     #sourceNode = null;
     #audioContext = null;
     constructor() {
         this.#audioContext = new NodeAudioContext();
-        this.#speaker = new speaker_1.default({
-            channels: this.#audioContext.format.numberOfChannels,
-            bitDepth: this.#audioContext.format.bitDepth,
-            sampleRate: this.#audioContext.sampleRate
-        });
-        this.#audioContext.outStream = this.#speaker;
-        this.#gainNode = this.#audioContext.createGain();
-        this.#gainNode.connect(this.#audioContext.destination);
     }
     get currentTime() {
         return this.#audioContext.currentTime;
@@ -72,10 +63,35 @@ class NodeMp3Player {
                 .then((res) => res.data)
                 .then((buffer) => {
                 this.#audioContext.decodeAudioData(buffer, (audioBuffer) => {
+                    const sampleRate = audioBuffer["sampleRate"];
+                    this.#audioContext.sampleRate = sampleRate;
+                    const speaker = new speaker_1.default({
+                        channels: this.#audioContext.format.numberOfChannels,
+                        bitDepth: this.#audioContext.format.bitDepth,
+                        sampleRate,
+                    });
+                    this.#audioContext.outStream = speaker;
+                    this.#gainNode = this.#audioContext.createGain();
+                    this.#gainNode.gain.value = this.#volume;
+                    this.#gainNode.connect(this.#audioContext.destination);
                     resolve(audioBuffer);
                 }, (err) => {
                     reject(err);
                 });
+            })
+                .catch((err) => {
+                if (err.response) {
+                    console.log(err.response.data);
+                    console.log(err.response.status);
+                    console.log(err.response.headers);
+                }
+                else if (err.request) {
+                    console.log(err.request);
+                }
+                else {
+                    console.log(err.message);
+                }
+                console.log(err.config);
             });
         });
     }
