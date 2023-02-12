@@ -98,3 +98,7 @@ player.onended = null
 ```shell
 npm i abc
 ```
+
+### Error: the 2 AudioBuffers don't have the same sampleRate
+
+This error will be thrown for some specific .mp3 audio is played and this error is thrown by the `web-audio-api` package, now the solution is unknown, but the "specific .mp3 audio" can be played overall.
