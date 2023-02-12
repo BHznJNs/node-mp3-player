@@ -3,7 +3,7 @@
   "version": "1.1.6",
   "description": "A mp3 playing library for Node.js cli.",
   "keywords": ["Node.js", "cli", "mp3", "audio"],
-  "main": "https://github.com/BHznJNs/node-mp3-player",
+  "homepage": "https://github.com/BHznJNs/node-mp3-player",
   "types": "./src/index.d.ts",
   "exports": {
     ".": {
