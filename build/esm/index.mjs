@@ -41,7 +41,8 @@ class NodeMp3Player {
         newVal = (newVal > 1) ? 1 : newVal;
         newVal = (newVal < 0) ? 0 : newVal;
         this.#volume = newVal;
-        this.#gainNode.gain.value = newVal;
+        if (this.#gainNode)
+            this.#gainNode.gain.value = newVal;
     }
     get onended() {
         return this.#sourceNode.onended;
