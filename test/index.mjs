@@ -4,7 +4,7 @@ import Player from "../build/esm/index.mjs"
 // player.src = "https://music.163.com/song/media/outer/url?id=2013921197.mp3"
 // await player.play()
 
-const player = new Player()
+const player = new Player({ mode: "network" })
 player.src = "https://music.163.com/song/media/outer/url?id=2061453.mp3"
 await player.play()
 

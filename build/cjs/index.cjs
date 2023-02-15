@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const node_fs_1 = __importDefault(require("node:fs"));
 const web_audio_api_1 = __importDefault(require("web-audio-api"));
 const speaker_1 = __importDefault(require("speaker"));
 const axios_1 = __importDefault(require("axios"));
@@ -11,6 +12,7 @@ class NodeMp3Player {
     isPlaying = false;
     loop = false;
     #currentUrl = "";
+    #srcFrom = 0;
     #volume = 1;
     #timer = {
         start: 0,
@@ -20,12 +22,22 @@ class NodeMp3Player {
             this.offset = 0;
         }
     };
-    #currentBuffer;
+    #currentBuffer = null;
     #gainNode = null;
     #sourceNode = null;
     #audioContext = null;
-    constructor() {
+    constructor({ mode = "network" } = {}) {
         this.#audioContext = new NodeAudioContext();
+        if (mode === "network") {
+            this.#srcFrom = 0;
+        }
+        else if (mode === "local") {
+            this.#srcFrom = 1;
+        }
+        else {
+            console.warn("Unknown Player Mode: " + mode);
+            this.#srcFrom = 0;
+        }
     }
     get currentTime() {
         return this.#audioContext.currentTime;
@@ -53,31 +65,37 @@ class NodeMp3Player {
         return this.#sourceNode.onended;
     }
     set onended(newVal) {
-        this.#sourceNode.onended = newVal;
+        if (this.#sourceNode) {
+            this.#sourceNode.onended = newVal;
+        }
     }
-    async #getBuffer() {
+    #resetSampleRate(audioBuffer) {
+        const sampleRate = audioBuffer["sampleRate"];
+        this.#audioContext.sampleRate = sampleRate;
+        const speaker = new speaker_1.default({
+            channels: this.#audioContext.format.numberOfChannels,
+            bitDepth: this.#audioContext.format.bitDepth,
+            sampleRate,
+        });
+        this.#audioContext.outStream = speaker;
+        this.#gainNode = this.#audioContext.createGain();
+        this.#gainNode.gain.value = this.#volume;
+        this.#gainNode.connect(this.#audioContext.destination);
+    }
+    async #getBufferFromNetWork() {
         const url = this.#currentUrl;
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             axios_1.default.get(url, {
                 responseType: "arraybuffer"
             })
                 .then((res) => res.data)
                 .then((buffer) => {
                 this.#audioContext.decodeAudioData(buffer, (audioBuffer) => {
-                    const sampleRate = audioBuffer["sampleRate"];
-                    this.#audioContext.sampleRate = sampleRate;
-                    const speaker = new speaker_1.default({
-                        channels: this.#audioContext.format.numberOfChannels,
-                        bitDepth: this.#audioContext.format.bitDepth,
-                        sampleRate,
-                    });
-                    this.#audioContext.outStream = speaker;
-                    this.#gainNode = this.#audioContext.createGain();
-                    this.#gainNode.gain.value = this.#volume;
-                    this.#gainNode.connect(this.#audioContext.destination);
+                    this.#resetSampleRate(audioBuffer);
                     resolve(audioBuffer);
                 }, (err) => {
-                    reject(err);
+                    console.log(err.message);
+                    resolve(null);
                 });
             })
                 .catch((err) => {
@@ -96,6 +114,33 @@ class NodeMp3Player {
             });
         });
     }
+    async #getBufferFromLocal() {
+        return new Promise((resolve) => {
+            let audioContent;
+            try {
+                audioContent = node_fs_1.default.readFileSync(this.src);
+            }
+            catch {
+                console.log("File Reading Error: reading " + this.src);
+                resolve(null);
+            }
+            this.#audioContext.decodeAudioData(audioContent, (audioBuffer) => {
+                this.#resetSampleRate(audioBuffer);
+                resolve(audioBuffer);
+            }, (err) => {
+                console.log(err.message);
+                resolve(null);
+            });
+        });
+    }
+    async #getBuffer() {
+        if (this.#srcFrom === 0) {
+            return await this.#getBufferFromNetWork();
+        }
+        else {
+            return await this.#getBufferFromLocal();
+        }
+    }
     #sourceNodeFactory(buffer, loop) {
         const source = this.#audioContext.createBufferSource();
         if (this.#sourceNode) {
@@ -113,6 +158,8 @@ class NodeMp3Player {
         }
         const buffer = this.#currentBuffer =
             await this.#getBuffer();
+        if (!buffer)
+            return;
         const source = this.#sourceNodeFactory(buffer, this.loop);
         source.start(0);
         this.#timer.start = this.currentTime;

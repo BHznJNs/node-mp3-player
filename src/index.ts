@@ -1,3 +1,4 @@
+import fs from "node:fs"
 import waa from "web-audio-api"
 import Speaker from "speaker"
 import axios, { AxiosResponse, AxiosError } from "axios"
@@ -12,7 +13,7 @@ const {
 interface Timer {
     start : number,
     offset: number,
-    clear : Function,
+    clear(): void,
 }
 
 class NodeMp3Player {
@@ -20,6 +21,7 @@ class NodeMp3Player {
     loop: boolean = false
 
     #currentUrl: string = ""
+    #srcFrom: number = 0 // 0 -> network | 1 -> local
     #volume: number = 1
     #timer: Timer = {
         start: 0,
@@ -30,13 +32,22 @@ class NodeMp3Player {
         }
     }
 
-    #currentBuffer: typeof NodeAudioBuffer
+    #currentBuffer: any | typeof NodeAudioBuffer = null
     #gainNode: any | typeof NodeGainNode = null
     #sourceNode: any | typeof NodeAudioBufferSourceNode = null
     #audioContext: any | typeof NodeAudioContext = null
 
-    constructor() {
+    constructor({ mode = "network" } = {}) {
         this.#audioContext = new NodeAudioContext()
+
+        if (mode === "network") {
+            this.#srcFrom = 0
+        } else if (mode === "local") {
+            this.#srcFrom = 1
+        } else {
+            console.warn("Unknown Player Mode: " + mode)
+            this.#srcFrom = 0
+        }
     }
 
     public get currentTime(): number {
@@ -66,13 +77,30 @@ class NodeMp3Player {
         return this.#sourceNode.onended
     }
     public set onended(newVal: Function) {
-        this.#sourceNode.onended = newVal
+        if (this.#sourceNode) {
+            this.#sourceNode.onended = newVal
+        }
     }
 
-    async #getBuffer(): Promise<typeof NodeAudioBuffer> {
+    #resetSampleRate(audioBuffer: typeof NodeAudioBuffer): void {
+        const sampleRate: number = audioBuffer["sampleRate"]
+        this.#audioContext.sampleRate = sampleRate
+
+        const speaker = new Speaker({
+            channels: this.#audioContext.format.numberOfChannels,
+            bitDepth: this.#audioContext.format.bitDepth,
+            sampleRate,
+        })
+
+        this.#audioContext.outStream = speaker
+        this.#gainNode = this.#audioContext.createGain()
+        this.#gainNode.gain.value = this.#volume
+        this.#gainNode.connect(this.#audioContext.destination)
+    }
+    async #getBufferFromNetWork(): Promise<typeof NodeAudioBuffer | null> {
         const url = this.#currentUrl
 
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             axios.get(url, {
                 // Use this to get `ArrayBuffer`
                 // typed response.
@@ -83,24 +111,12 @@ class NodeMp3Player {
                 this.#audioContext.decodeAudioData(
                     buffer,
                     (audioBuffer: typeof NodeAudioBuffer) => {
-                        const sampleRate: number = audioBuffer["sampleRate"]
-                        this.#audioContext.sampleRate = sampleRate
-
-                        const speaker = new Speaker({
-                            channels: this.#audioContext.format.numberOfChannels,
-                            bitDepth: this.#audioContext.format.bitDepth,
-                            sampleRate,
-                        })
-
-                        this.#audioContext.outStream = speaker
-                        this.#gainNode = this.#audioContext.createGain()
-                        this.#gainNode.gain.value = this.#volume
-                        this.#gainNode.connect(this.#audioContext.destination)
-
+                        this.#resetSampleRate(audioBuffer)
                         resolve(audioBuffer)
                     },
                     (err: Error) => {
-                        reject(err)
+                        console.log(err.message)
+                        resolve(null)
                     }
                 )
             })
@@ -118,6 +134,37 @@ class NodeMp3Player {
                 console.log(err.config)
             })
         })
+    }
+    async #getBufferFromLocal(): Promise<typeof NodeAudioBuffer | null> {
+        return new Promise((resolve) => {
+
+            let audioContent!: Buffer
+            try {
+                audioContent = fs.readFileSync(this.src)
+            } catch {
+                console.log("File Reading Error: reading " + this.src)
+                resolve(null)
+            }
+
+            this.#audioContext.decodeAudioData(
+                audioContent,
+                (audioBuffer: typeof NodeAudioBuffer) => {
+                    this.#resetSampleRate(audioBuffer)
+                    resolve(audioBuffer)
+                },
+                (err: Error) => {
+                    console.log(err.message)
+                    resolve(null)
+                },
+            )
+        })
+    }
+    async #getBuffer(): Promise<typeof NodeAudioBuffer | null> {
+        if (this.#srcFrom === 0) {
+            return await this.#getBufferFromNetWork()
+        } else {
+            return await this.#getBufferFromLocal()
+        }
     }
 
     // 创建可以被直接使用的 sourceNode
@@ -141,9 +188,11 @@ class NodeMp3Player {
             return null
         }
 
-        const buffer: typeof NodeAudioBuffer =
+        const buffer: typeof NodeAudioBuffer | null =
             this.#currentBuffer =
             await this.#getBuffer()
+        if (!buffer) return
+
         const source = this.#sourceNodeFactory(buffer, this.loop)
         source.start(0)
 

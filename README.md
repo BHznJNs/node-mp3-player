@@ -1,6 +1,6 @@
 # node-mp3-player
 
-A mp3 playing library which can play .mp3 audio from web for Node.js cli.
+A mp3 playing library which can play .mp3 audio from network and local for Node.js cli.
 
 ## Installation
 
@@ -43,12 +43,25 @@ import Player from "@bhznjns/node-mp3-player"
 const { default: Player } = require("@bhznjns/node-mp3-player")
 ```
 
-### Play
+### Play Audio from Network
 
 ```JavaScript
 const player = new Player()
+// Equal to:
+// const player = new Player({ mode: "network" })
 
 player.src = "http://mp3audio.url"
+await player.play()
+
+// do something else ...
+```
+
+### Play Audio from Local
+
+```JavaScript
+const player = new Player({ mode: "local" })
+
+player.src = "./audio.mp3"
 await player.play()
 
 // do something else ...

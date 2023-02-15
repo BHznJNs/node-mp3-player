@@ -2,7 +2,9 @@ declare class NodeMp3Player {
     #private;
     isPlaying: boolean;
     loop: boolean;
-    constructor();
+    constructor({ mode }?: {
+        mode?: string;
+    });
     get currentTime(): number;
     get src(): string;
     set src(newVal: string);
