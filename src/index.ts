@@ -218,7 +218,6 @@ class NodeMp3Player {
         if (this.#sourceNode) {
             this.#sourceNode.stop(0)
             this.#sourceNode.disconnect()
-            this.#sourceNode.buffer = null
             this.#sourceNode = null
 
             this.isPlaying = false

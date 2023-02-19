@@ -94,7 +94,7 @@ class NodeMp3Player {
                 .then((res) => res.data)
                 .then((buffer) => {
                 this.#audioContext.decodeAudioData(buffer, (audioBuffer) => {
-                    this.#resetSampleRate(audioBuffer.sampleRate);
+                    this.#resetSampleRate(audioBuffer["sampleRate"]);
                     resolve(audioBuffer);
                 }, (err) => {
                     console.log(err.message);
@@ -128,7 +128,7 @@ class NodeMp3Player {
                 resolve(null);
             }
             this.#audioContext.decodeAudioData(audioContent, (audioBuffer) => {
-                this.#resetSampleRate(audioBuffer.sampleRate);
+                this.#resetSampleRate(audioBuffer["sampleRate"]);
                 resolve(audioBuffer);
             }, (err) => {
                 console.log(err.message);
@@ -183,7 +183,6 @@ class NodeMp3Player {
         if (this.#sourceNode) {
             this.#sourceNode.stop(0);
             this.#sourceNode.disconnect();
-            this.#sourceNode.buffer = null;
             this.#sourceNode = null;
             this.isPlaying = false;
             if (!this.#timer.offset) {
