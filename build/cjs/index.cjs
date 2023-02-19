@@ -22,10 +22,10 @@ class NodeMp3Player {
             this.offset = 0;
         }
     };
-    #currentBuffer = null;
     #gainNode = null;
     #sourceNode = null;
     #audioContext = null;
+    #currentBuffer = null;
     constructor({ mode = "network" } = {}) {
         this.#audioContext = new NodeAudioContext();
         if (mode === "network") {
@@ -47,7 +47,8 @@ class NodeMp3Player {
     }
     set src(newVal) {
         this.stop();
-        this.#sourceNode = null;
+        this.#currentBuffer = null;
+        this.#gainNode = null;
         this.#currentUrl = newVal;
         this.#timer.clear();
     }
@@ -69,8 +70,10 @@ class NodeMp3Player {
             this.#sourceNode.onended = newVal;
         }
     }
-    #resetSampleRate(audioBuffer) {
-        const sampleRate = audioBuffer["sampleRate"];
+    #resetSampleRate(newSampleRate) {
+        if (this.#gainNode)
+            this.#gainNode.disconnect();
+        const sampleRate = newSampleRate;
         this.#audioContext.sampleRate = sampleRate;
         const speaker = new speaker_1.default({
             channels: this.#audioContext.format.numberOfChannels,
@@ -91,7 +94,7 @@ class NodeMp3Player {
                 .then((res) => res.data)
                 .then((buffer) => {
                 this.#audioContext.decodeAudioData(buffer, (audioBuffer) => {
-                    this.#resetSampleRate(audioBuffer);
+                    this.#resetSampleRate(audioBuffer.sampleRate);
                     resolve(audioBuffer);
                 }, (err) => {
                     console.log(err.message);
@@ -118,14 +121,14 @@ class NodeMp3Player {
         return new Promise((resolve) => {
             let audioContent;
             try {
-                audioContent = node_fs_1.default.readFileSync(this.src);
+                audioContent = node_fs_1.default.readFileSync(this.#currentUrl);
             }
             catch {
-                console.log("File Reading Error: reading " + this.src);
+                console.log("File Reading Error: reading " + this.#currentUrl);
                 resolve(null);
             }
             this.#audioContext.decodeAudioData(audioContent, (audioBuffer) => {
-                this.#resetSampleRate(audioBuffer);
+                this.#resetSampleRate(audioBuffer.sampleRate);
                 resolve(audioBuffer);
             }, (err) => {
                 console.log(err.message);
@@ -154,12 +157,12 @@ class NodeMp3Player {
     }
     async play() {
         if (!this.#currentUrl || (typeof this.#currentUrl !== "string")) {
-            return null;
+            return false;
         }
         const buffer = this.#currentBuffer =
             await this.#getBuffer();
         if (!buffer)
-            return;
+            return false;
         const source = this.#sourceNodeFactory(buffer, this.loop);
         source.start(0);
         this.#timer.start = this.currentTime;
@@ -179,6 +182,9 @@ class NodeMp3Player {
     stop() {
         if (this.#sourceNode) {
             this.#sourceNode.stop(0);
+            this.#sourceNode.disconnect();
+            this.#sourceNode.buffer = null;
+            this.#sourceNode = null;
             this.isPlaying = false;
             if (!this.#timer.offset) {
                 this.#timer.offset = this.currentTime - this.#timer.start;

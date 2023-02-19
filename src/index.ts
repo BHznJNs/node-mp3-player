@@ -32,10 +32,10 @@ class NodeMp3Player {
         }
     }
 
-    #currentBuffer: any | typeof NodeAudioBuffer = null
     #gainNode: any | typeof NodeGainNode = null
     #sourceNode: any | typeof NodeAudioBufferSourceNode = null
     #audioContext: any | typeof NodeAudioContext = null
+    #currentBuffer: any | typeof NodeAudioBuffer = null
 
     constructor({ mode = "network" } = {}) {
         this.#audioContext = new NodeAudioContext()
@@ -58,7 +58,8 @@ class NodeMp3Player {
     }
     public set src(newVal: string) {
         this.stop()
-        this.#sourceNode = null
+        this.#currentBuffer = null
+        this.#gainNode   = null
         this.#currentUrl = newVal
         this.#timer.clear()
     }
@@ -82,8 +83,10 @@ class NodeMp3Player {
         }
     }
 
-    #resetSampleRate(audioBuffer: typeof NodeAudioBuffer): void {
-        const sampleRate: number = audioBuffer["sampleRate"]
+    #resetSampleRate(newSampleRate: number): void {
+        if (this.#gainNode) this.#gainNode.disconnect()
+
+        const sampleRate: number = newSampleRate
         this.#audioContext.sampleRate = sampleRate
 
         const speaker = new Speaker({
@@ -111,7 +114,7 @@ class NodeMp3Player {
                 this.#audioContext.decodeAudioData(
                     buffer,
                     (audioBuffer: typeof NodeAudioBuffer) => {
-                        this.#resetSampleRate(audioBuffer)
+                        this.#resetSampleRate(audioBuffer["sampleRate"])
                         resolve(audioBuffer)
                     },
                     (err: Error) => {
@@ -140,16 +143,16 @@ class NodeMp3Player {
 
             let audioContent!: Buffer
             try {
-                audioContent = fs.readFileSync(this.src)
+                audioContent = fs.readFileSync(this.#currentUrl)
             } catch {
-                console.log("File Reading Error: reading " + this.src)
+                console.log("File Reading Error: reading " + this.#currentUrl)
                 resolve(null)
             }
 
             this.#audioContext.decodeAudioData(
                 audioContent,
                 (audioBuffer: typeof NodeAudioBuffer) => {
-                    this.#resetSampleRate(audioBuffer)
+                    this.#resetSampleRate(audioBuffer["sampleRate"])
                     resolve(audioBuffer)
                 },
                 (err: Error) => {
@@ -183,15 +186,15 @@ class NodeMp3Player {
         return source
     }
 
-    public async play() {
+    public async play(): Promise<boolean> {
         if (!this.#currentUrl || (typeof this.#currentUrl !== "string")) {
-            return null
+            return false
         }
 
         const buffer: typeof NodeAudioBuffer | null =
             this.#currentBuffer =
             await this.#getBuffer()
-        if (!buffer) return
+        if (!buffer) return false
 
         const source = this.#sourceNodeFactory(buffer, this.loop)
         source.start(0)
@@ -214,6 +217,10 @@ class NodeMp3Player {
     public stop() {
         if (this.#sourceNode) {
             this.#sourceNode.stop(0)
+            this.#sourceNode.disconnect()
+            this.#sourceNode.buffer = null
+            this.#sourceNode = null
+
             this.isPlaying = false
             if (!this.#timer.offset) {
                 this.#timer.offset = this.currentTime - this.#timer.start
